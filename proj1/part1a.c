@@ -60,11 +60,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  /* Make the fibonacci cruncher thread */
-  pthread_t fibthread;
-  int retval;
-
-  /* Allocate the array */
+  /* Allocate the array that will hold the fibonacci numbers. */
   unsigned long long int *array;
   array = malloc(size*sizeof(long long int));
   if (array==NULL) {
@@ -73,7 +69,7 @@ int main(int argc, char *argv[]) {
   }
 
   /* Initialize the array by filling with -1 */
-  /* If thread doesn't work, main should spit out -1 for all elements */
+  /* (If thread doesn't work, main should spit out -1 for all elements) */
   int i;
   for( i = 0 ; i < size ; i++) {
     array[i] = -1;
@@ -90,6 +86,8 @@ int main(int argc, char *argv[]) {
   printf("In main: creating fibthread.\n");
 
   /* Create the thread */
+  pthread_t fibthread;
+  int retval;
   retval = pthread_create(&fibthread, NULL, fibonacciCruncher, (void *) &init);
   if (retval) {
     printf("ERROR: pthread_create() returned %d\n", retval);
