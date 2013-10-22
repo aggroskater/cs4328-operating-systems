@@ -1,0 +1,10 @@
+OpenMP is included as a standard library in most gcc complier so it is already on all the CS servers.
+You need to write your source code in c and use c libraries instead of c++ libraries. Your source code should have an extension name .c instead of .cpp because gcc compiler might not recognize some of the c++ code.
+
+To give you an example, I included the c version of count99 code. You will see the difference if you compare the c++ version (provided in the proj1.pdf).
+Here is how you compile and run an openMP code in Linux:
+[zz11@eros OpenMP_Demo_Code]$ gcc -fopenmp -o hello omp_hello.c
+[zz11@eros OpenMP_Demo_Code]$ ./hello
+Hello World 0 
+Hello World 1 
+Hello World 2 
