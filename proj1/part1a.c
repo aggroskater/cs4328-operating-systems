@@ -2,14 +2,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+/* The man pages and the following website were very helpful in quickly 
+ * getting up to speed on pthreads:
+ *
+ * https://computing.llnl.gov/tutorials/pthreads/
+ *
+ */
+
 /* Thread argument struct */
 struct thread_args{
 
   int thread_id;
-  int seed1;
-  int seed2;
+  unsigned long long int seed1;
+  unsigned long long int seed2;
   int size; /* Number of fibonacci to crunch */
-  int *array; /* Array dynamically allocated. Must pass its address */
+  unsigned long long int *array; /* Array dynamically allocated. Must pass its address */
 
 };
 
@@ -21,7 +28,7 @@ void *fibonacciCruncher(void *threadArgs) {
   /* Don't really have to do this; just wanting to make sure we can make 
    * localized copies of the stuff in the struct
    */
-  int seed1, seed2;
+  unsigned long long int seed1, seed2;
   seed1 = local->seed1;
   seed2 = local->seed2;
   local->array[0] = seed1;
@@ -38,30 +45,46 @@ void *fibonacciCruncher(void *threadArgs) {
 
 int main(int argc, char *argv[]) {
 
+  /* Grab user input */
+  int size;
+
+  if (argc != 2) {
+    printf("Invalid usage. Correct usage is `./part1a $n`, where $n is a positive integer greater than or equal to 2 and less than or equal to 94.\n");
+    exit(-1);
+  }
+  else {
+    size = atoi(argv[1]);
+    if( size > 94 || size < 2) {
+      printf("Supplied integer either less than 2 or greater than 94. Try again.\n");
+      exit(-1);
+    }
+  }
+
   /* Make the fibonacci cruncher thread */
   pthread_t fibthread;
   int retval;
 
   /* Allocate the array */
-  int *array;
-  array = malloc(100*sizeof(int));
+  unsigned long long int *array;
+  array = malloc(size*sizeof(long long int));
   if (array==NULL) {
     printf("Failed to allocate memory for array.\n");
     exit(-1);
   }
 
   /* Initialize the array by filling with -1 */
+  /* If thread doesn't work, main should spit out -1 for all elements */
   int i;
-  for( i = 0 ; i < 100 ; i++) {
+  for( i = 0 ; i < size ; i++) {
     array[i] = -1;
   }
 
   /* Make the thread arg struct */
   struct thread_args init;
-  init.threadid = 1337;
+  init.thread_id = 1337;
   init.seed1 = 0;
   init.seed2 = 1;
-  init.size = 100;
+  init.size = size;
   init.array = array;
 
   printf("In main: creating fibthread.\n");
@@ -79,9 +102,9 @@ int main(int argc, char *argv[]) {
   /* The following for loop should not execute until the thread is done. */
 
   /* Cycle through the completed array */
-  for( i=0 ; i < 100 ; i++) {
+  for( i=0 ; i < size ; i++) {
 
-    printf("%d ",array[i]);
+    printf("%llu\n",array[i]);
 
   }
 
