@@ -11,6 +11,7 @@ void *fibonacciCruncher(void *threadId) {
 
 }
 
+
 int main(int argc, char *argv[]) {
 
   /* My local machine has 4 physical cores */
@@ -36,3 +37,4 @@ int main(int argc, char *argv[]) {
   pthread_exit(NULL);
 
 }
+
