@@ -10,6 +10,7 @@ static int numberOfZeros;
 /* Thread struct */
 struct thread_args {
   int thread_id;
+  pthread_mutex_t* locker;
   int* counter;
   int* array;
   int start;
@@ -29,12 +30,17 @@ void *findThe99s(void* threadArgs) {
   int* globalCount;
   globalCount = local->counter;
 
+  pthread_mutex_t* locker;
+  locker = local->locker;
+
   printf("THREAD: In thread %d.\n",local->thread_id);
   printf("Checking from %d to %d.\n",start,finish);
 
   for( start ; start < finish ; start++ ) {
     if (local->array[start] == 99) {
+      pthread_mutex_lock(locker);
       *globalCount = *globalCount + 1;
+      pthread_mutex_unlock(locker);
     } 
   }
 
@@ -82,12 +88,18 @@ int main(int argc, char *argv[]) {
   /* Declare their argument structs */
   struct thread_args threadArgs[NUM_THREADS];
 
-  /* Start the treads */
+  /* Declare a mutex */
+  pthread_mutex_t locker;
+  pthread_mutex_init(&locker, NULL);
+
+  /* Initialize the threads */
   int retval;
   for ( i = 0 ; i < NUM_THREADS ; i++) {
 
     /* We want each thread to have the address of the shared counter */
+    /* And the same mutex */
     threadArgs[i].thread_id = i;
+    threadArgs[i].locker = &locker;
     threadArgs[i].counter = &count;
     threadArgs[i].array = array;
     threadArgs[i].start = i*dividend;
