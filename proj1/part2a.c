@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
       init[count].column = j;
 
       /* Create the thread */
-      retval = pthread_create(&threads[i], NULL, matrixCruncher, 
+      retval = pthread_create(&threads[count], NULL, matrixCruncher, 
         (void *) &init[count]);
       if (retval) {
         printf("ERROR: pthread_create() returned %d\n",retval);
