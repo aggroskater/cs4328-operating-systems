@@ -1,6 +1,6 @@
-#include <pthread.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <pthread.h> /* For pthreads */
+#include <stdio.h> /* For printf */
+#include <stdlib.h> /* For exit */
 
 /* Constants as defined in the Project Description */
 #define M 3
