@@ -7,6 +7,10 @@
  *
  * https://computing.llnl.gov/tutorials/pthreads/
  *
+ * Compile like so:
+ *
+ * $ gcc -lpthread part1a.c -o part1a
+ *
  */
 
 /* Thread argument struct */

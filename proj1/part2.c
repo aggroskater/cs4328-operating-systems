@@ -2,6 +2,13 @@
 #include <stdio.h> /* For printf */
 #include <stdlib.h> /* For exit */
 
+/*
+ * Compile like so:
+ *
+ * $ gcc -lpthread part2.c -g -o part2
+ *
+ */
+
 /* Constants as defined in the Project Description */
 #define M 3
 #define K 2
