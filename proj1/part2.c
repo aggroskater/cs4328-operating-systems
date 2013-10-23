@@ -35,7 +35,7 @@ void *matrixCruncher(void* threadArgs) {
 
   int i;
   for( i=0 ; i < K ; i++ ) {
-    C[row][column] += A[row][i] + B[i][column];
+    C[row][column] += A[row][i] * B[i][column];
   }
 
   printf("THREAD: Exiting thread %d\n",local->thread_id);
