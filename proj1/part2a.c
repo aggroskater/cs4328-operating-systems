@@ -31,14 +31,14 @@ void *matrixCruncher(void* threadArgs) {
   row = local->row;
   column = local->column; 
 
-  printf("In thread %d crunching C[%d][%d].\n",local->thread_id,row,column);
+  printf("THREAD: In thread %d crunching C[%d][%d].\n",local->thread_id,row,column);
 
   int i;
   for( i=0 ; i < K ; i++ ) {
     C[row][column] += A[row][i] + B[i][column];
   }
 
-  printf("Exiting thread %d\n",local->thread_id);
+  printf("THREAD: Exiting thread %d\n",local->thread_id);
 
 }
 
@@ -48,13 +48,14 @@ int main(int argc, char *argv[]) {
   struct thread_args init[M*N];
 
   /* Create an array of thread-types */
-//  pthread_t threads[M*N];
-  pthread_t *threads = malloc(sizeof(pthread_t)*(M*N));
+  pthread_t threads[M*N];
+//  pthread_t *threads = malloc(sizeof(pthread_t)*(M*N));
 
   /* Give all threads same attributes. Namely, joinable */
 //  pthread_attr_t attr;
 //  pthread_attr_init(&attr);
 //  pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+  /* Joinable by default (in Linux anyway). */
 
   int count,retval;
   count = 0;
@@ -72,7 +73,7 @@ int main(int argc, char *argv[]) {
       retval = pthread_create(&threads[count], NULL, matrixCruncher, 
         (void *) &init[count]);
       if (retval) {
-        printf("ERROR: pthread_create() returned %d\n",retval);
+        printf("MAIN: ERROR: pthread_create() returned %d\n",retval);
         exit(-1);
       }
 
@@ -82,21 +83,19 @@ int main(int argc, char *argv[]) {
 
   }
 
-  printf("Waiting for threads to finish.\n");
+  printf("MAIN: Waiting for threads to finish.\n");
 
   /* Wait for the threads to finish */
     for ( i=0 ; i < M*N ; i++) {
-    printf("Beginning cleanup of thread %d.\n",i);
     int ret;
     void* result;
     ret = pthread_join(threads[i],&result);
     if(ret) {
-      printf("ERROR: pthread_join() returned %d on thread_id %d\n",ret,i);
+      printf("MAIN: ERROR: pthread_join() returned %d on thread_id %d\n",ret,i);
     }
-    printf("Finished waiting on %d\n",i);
   }
 
-  printf("Finished waiting on threads.\n");
+  printf("MAIN: Finished waiting on threads.\n");
 
   /* Output the final matrix */
   for ( i=0 ; i < M ; i++ ) {
