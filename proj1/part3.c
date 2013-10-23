@@ -5,7 +5,7 @@
 
 /* Compile with the following:
  *
- * $ gcc -g -lpthread -lrt -fopenmp part3b.c -o part3b
+ * $ gcc -g -lpthread -lrt -fopenmp part3.c -o part3
  *
  */
 
