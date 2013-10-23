@@ -3,7 +3,13 @@
 #include <stdlib.h> /* exit, srand, rand */
 #include <time.h> /* clock_t types, CLOCKS_PER_SEC constant */
 
-#define NUM_THREADS 1
+/* Compile with the following:
+ *
+ * gcc -g -lpthread -lrt -fopenmp part3b.c -o part3b
+ *
+ */
+
+#define NUM_THREADS 4
 
 /* Thread struct */
 struct thread_args {
