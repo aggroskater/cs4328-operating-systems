@@ -3,18 +3,14 @@
 #include <stdlib.h> /* exit, srand, rand */
 #include <time.h> /* clock_t types, CLOCKS_PER_SEC constant */
 
-#define NUM_THREADS 4
+#define NUM_THREADS 1
 
 /* Thread struct */
 struct thread_args {
-//  int thread_id;
-//  pthread_mutex_t* locker;
-//  int* counter;
   int counter;
   int* array;
   unsigned int start;
   unsigned int finish;
-//  double time_spent;
 };
 
 /* Threaded Code */
@@ -27,102 +23,107 @@ void *findThe99s(void* threadArgs) {
   start = local->start;
   finish = local->finish;
 
-//  int* globalCount;
-//  globalCount = local->counter;
-
-//  pthread_mutex_t* locker;
-//  locker = local->locker;
-
-//  printf("THREAD: In thread %d.\n",local->thread_id);
-//  printf("Checking from %llu to %llu.\n",start,finish);
-
-//  clock_t begin,end;
-//  begin = clock();
   for( start ; start < finish ; start++ ) {
     if (local->array[start] == 99) {
-//      pthread_mutex_lock(locker);
-//      *globalCount = *globalCount + 1;
-//      pthread_mutex_unlock(locker);
-//        local->counter = local->counter + 1;
         local->counter++;
     } 
   }
-//  end = clock();
-//  local->time_spent = ((double)(end-begin))/CLOCKS_PER_SEC;
 
 }
 
 int main(int argc, char *argv[]) {
 
-  int count;
-  count = 0;
-  unsigned int const size = 10000000; /* 1M */
+  /* Allocate our array */
+  unsigned int const size = 10000000; /* 10M */
   int *array = malloc(sizeof(unsigned int)*size);
 
-  unsigned int i;
-  /* Fill the array with random values */
+  /* Seed the PRNG */
   srand((unsigned)time(NULL));
+
+  /* Fill the array with random values */
+  unsigned int i;
   for ( i = 0 ; i < size ; i++) {
     array[i] = rand() % 100;
   }
 
+  /*****************************************/
+  /*                                       */
   /* Figure out the number of 99s serially */
+  /*                                       */
+  /*****************************************/
+
   int countSerial;
   countSerial = 0;
 
-//  clock_t serialStart;
-//  clock_t serialEnd;
-//  double serialTime;
+  /* timers for serial */
+  struct timespec startSerial, finishSerial;
+  double elapsedSerial;
 
-  struct timespec start, finish;
-  double elapsed;
+  /* Start timing */
+  clock_gettime(CLOCK_MONOTONIC, &startSerial);
 
-//  serialStart = clock(); 
-  clock_gettime(CLOCK_MONOTONIC, &start);
+  /* Serial execution */
   for( i = 0; i < size ; i++) {
     if( array[i] == 99 ) {
       countSerial++;
     }
   }
-  clock_gettime(CLOCK_MONOTONIC, &finish);
-//  serialEnd = clock();
 
-//  serialTime = ((double)(serialEnd - serialStart)) / CLOCKS_PER_SEC;
+  /* End timing */
+  clock_gettime(CLOCK_MONOTONIC, &finishSerial);
 
-  elapsed = (finish.tv_sec - start.tv_sec);
-  elapsed += (finish.tv_nsec - start.tv_nsec) / 1000000000.0;
+  /* Crunch serial execution time */
+  elapsedSerial = (finishSerial.tv_sec - startSerial.tv_sec);
+  elapsedSerial += (finishSerial.tv_nsec - startSerial.tv_nsec) / 1000000000.0;
 
-  /* Do it with openmp */
+  /********************************************/
+  /*                                          */
+  /* Figure out the number of 99s with openMP */
+  /*                                          */
+  /********************************************/
 
-  double omp_start, omp_end;
   int countOMP;
   countOMP = 0;
 
-  struct timespec start3, finish3;
-  double elapsed3;
+  /* timers for openMP */
+  struct timespec startOMP, finishOMP;
+  double elapsedOMP;
 
-  clock_gettime(CLOCK_MONOTONIC, &start3);
-//  omp_start = omp_get_wtime();
+  /* Start timing */
+  clock_gettime(CLOCK_MONOTONIC, &startOMP);
+
   int n;
-  #pragma omp parallel for private(n) num_threads(4) reduction(+:countOMP)
+  #pragma omp parallel for private(n) num_threads(NUM_THREADS) reduction(+:countOMP)
   for ( n=0 ; n < size ; n++) {
     if ( array[n] == 99 ) {
       countOMP += 1;
     }
   }
-//  omp_end = omp_get_wtime();
-  clock_gettime(CLOCK_MONOTONIC, &finish3);
-  elapsed3 = (finish3.tv_sec - start3.tv_sec);
-  elapsed3 += (finish3.tv_nsec - start3.tv_nsec) / 1000000000.0 ;
-  
 
-  /* Now Perform data parallelism. */
-  /* Each thread chews through a piece of the arrray. */ 
+  /* End timing */
+  clock_gettime(CLOCK_MONOTONIC, &finishOMP);
+
+  /* Crunch openMP execution time */
+  elapsedOMP = (finishOMP.tv_sec - startOMP.tv_sec);
+  elapsedOMP += (finishOMP.tv_nsec - startOMP.tv_nsec) / 1000000000.0 ;
+  
+  /**********************************************/
+  /*                                            */
+  /* Figure out the number of 99s with pthreads */
+  /*                                            */
+  /**********************************************/
+
+  int countPthreads;
+  countPthreads = 0;
  
-  /* Figure out if a thread needs to handle left-overs */ 
+  /* Figure out if a thread needs to handle left-overs. */ 
+  /* I.e., size/NUM_THREADS isn't a whole number */
   unsigned int remainder;
   remainder = size % NUM_THREADS;
 
+  /* Figure out the chunk size. I.e., the portion of the array 
+   * each thread will work on.
+   */
   unsigned int dividend;
   dividend = size / NUM_THREADS;
 
@@ -132,33 +133,23 @@ int main(int argc, char *argv[]) {
   /* Declare their argument structs */
   struct thread_args threadArgs[NUM_THREADS];
 
-  /* Declare a mutex */
-  pthread_mutex_t locker;
-  pthread_mutex_init(&locker, NULL);
+  /* timers for pthreads */
+  struct timespec startPthreads, finishPthreads;
+  double elapsedPthreads;
 
-  /* testing something */
-//  clock_t testStart, testEnd;
-//  double testTime;
+  /* Start timing ; Have to start timing here to include thread creation */
+  clock_gettime(CLOCK_MONOTONIC, &startPthreads);
 
-//  testStart = clock();
-
-  struct timespec start2, finish2;
-  double elapsed2;
-  clock_gettime(CLOCK_MONOTONIC, &start2);
   /* Initialize the threads */
   int retval;
   for ( i = 0 ; i < NUM_THREADS ; i++) {
 
-    /* We want each thread to have the address of the shared counter */
-    /* and the address of the (single) mutex to protect access to counter. */
-//    threadArgs[i].thread_id = i;
-//    threadArgs[i].locker = &locker;
-//    threadArgs[i].counter = &count;
     threadArgs[i].counter = 0;
     threadArgs[i].array = array;
     threadArgs[i].start = i*dividend;
     threadArgs[i].finish = (i+1)*dividend;
-//    threadArgs[i].time_spent = 0;
+
+    /* In case size/NUM_THREADS wasn't evenly divisible */
     if (i == NUM_THREADS -1 && remainder) {
       threadArgs[i].finish += remainder;
       remainder = 0;
@@ -175,47 +166,49 @@ int main(int argc, char *argv[]) {
 
   /* Gotta wait for the threads to finish */
   for ( i=0 ; i < NUM_THREADS ; i++) {
-    //int ret;
-    //void* result;
-    //ret = pthread_join(threads[i],&result);
+    int ret;
+    void* result;
+    ret = pthread_join(threads[i],&result);
     pthread_join(threads[i],NULL);
-    //if(ret) {
-    //  printf("MAIN: ERROR: pthread_join() returned %d\n",ret);
-    //}
+    if(ret) {
+      printf("MAIN: ERROR: pthread_join() returned %d\n",ret);
+    }
   }
-//  testEnd = clock();
-//  testTime = ((double)(testEnd-testStart))/ CLOCKS_PER_SEC;
 
-  clock_gettime(CLOCK_MONOTONIC, &finish2);
-  elapsed2 = (finish2.tv_sec - start2.tv_sec);
-  elapsed2 += (finish2.tv_nsec - start2.tv_nsec) / 1000000000.0;
-
-  /* Crunch total time with threads */
-  double concurrentTime;
-  concurrentTime = 0;
-//  for ( i = 0 ; i < NUM_THREADS ; i++) {
-//    concurrentTime += threadArgs[i].time_spent;
-//  }
-
-  count = 0;
-  /* Crunch total occurences from threads */
+  /* Threads are done. Crunch total occurences from threads.
+   * We had each thread update a local counter to avoid 
+   * mutexing, which slowed the threads down considerably.
+   */
   for ( i = 0 ; i < NUM_THREADS ; i++) {
-    count += threadArgs[i].counter;
+    countPthreads += threadArgs[i].counter;
   }
 
-  /* End with the count */
-  printf("Found %d 99s concurrently.\n", count);
+  /* Stop timing */
+  clock_gettime(CLOCK_MONOTONIC, &finishPthreads);
+
+  /* Crunch pthreads execution time */
+  elapsedPthreads = (finishPthreads.tv_sec - startPthreads.tv_sec);
+  elapsedPthreads += (finishPthreads.tv_nsec - startPthreads.tv_nsec) / 1000000000.0;
+
+  /********************************/
+  /*                              */ 
+  /* Print out useful information */
+  /*                              */
+  /********************************/
+
+  printf("Using %d threads.\n", NUM_THREADS);
+
   printf("Found %d 99s serially.\n", countSerial);
-  printf("Found %d 99s with OMP.\n", countOMP);
+  printf("Found %d 99s with openMP.\n", countOMP);
+  printf("Found %d 99s with pthreads.\n", countPthreads);
+ 
+  printf("Took %f time serially.\n", elapsedSerial);
+  printf("Took %f time with openMP.\n", elapsedOMP);
+  printf("Took %f time with pthreads.\n", elapsedPthreads);
 
-  printf("Took %f time concurrently.\n", concurrentTime);
-//  printf("Took %f time serially.\n", serialTime);
-  printf("Took %f time serially.\n", elapsed);
-//  printf("Took %f time test.\n", testTime);
-  printf("Took %f time test.\n", elapsed2);
-  printf("Speedup is %f.\n" , (double)(elapsed/elapsed2));
+  printf("Pthreads speedup is %f.\n" , (double)(elapsedSerial/elapsedPthreads));
+  printf("OMP speedup is %f.\n", (double)(elapsedSerial/elapsedOMP));
 
-  printf("OMP time is %f.\n", elapsed3);
-  printf("OMP speedup is %f.\n", (double)(elapsed/elapsed3));
+  return 0;
 
 }
