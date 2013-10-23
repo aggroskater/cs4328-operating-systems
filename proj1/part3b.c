@@ -5,8 +5,6 @@
 
 #define NUM_THREADS 4
 
-static int numberOfZeros;
-
 /* Thread struct */
 struct thread_args {
 //  int thread_id;
@@ -14,8 +12,8 @@ struct thread_args {
 //  int* counter;
   int counter;
   int* array;
-  unsigned long long int start;
-  unsigned long long int finish;
+  unsigned int start;
+  unsigned int finish;
 //  double time_spent;
 };
 
@@ -25,7 +23,7 @@ void *findThe99s(void* threadArgs) {
   struct thread_args *local;
   local = (struct thread_args *) threadArgs;
 
-  unsigned long long int start,finish;
+  unsigned int start,finish;
   start = local->start;
   finish = local->finish;
 
@@ -45,7 +43,8 @@ void *findThe99s(void* threadArgs) {
 //      pthread_mutex_lock(locker);
 //      *globalCount = *globalCount + 1;
 //      pthread_mutex_unlock(locker);
-        local->counter = local->counter + 1;
+//        local->counter = local->counter + 1;
+        local->counter++;
     } 
   }
 //  end = clock();
@@ -55,16 +54,12 @@ void *findThe99s(void* threadArgs) {
 
 int main(int argc, char *argv[]) {
 
-  /* The static declaration should initialize this to zero. */
-  /* But let's play it safe */
-  numberOfZeros = 0;
-
   int count;
   count = 0;
-  unsigned long long int const size = 1000000; /* 100K */
-  int *array = malloc(sizeof(unsigned long long int)*size);
+  unsigned int const size = 10000000; /* 1M */
+  int *array = malloc(sizeof(unsigned int)*size);
 
-  unsigned long long int i;
+  unsigned int i;
   /* Fill the array with random values */
   srand((unsigned)time(NULL));
   for ( i = 0 ; i < size ; i++) {
@@ -75,9 +70,9 @@ int main(int argc, char *argv[]) {
   int countSerial;
   countSerial = 0;
 
-  clock_t serialStart;
-  clock_t serialEnd;
-  double serialTime;
+//  clock_t serialStart;
+//  clock_t serialEnd;
+//  double serialTime;
 
   struct timespec start, finish;
   double elapsed;
@@ -97,14 +92,38 @@ int main(int argc, char *argv[]) {
   elapsed = (finish.tv_sec - start.tv_sec);
   elapsed += (finish.tv_nsec - start.tv_nsec) / 1000000000.0;
 
+  /* Do it with openmp */
+
+  double omp_start, omp_end;
+  int countOMP;
+  countOMP = 0;
+
+  struct timespec start3, finish3;
+  double elapsed3;
+
+  clock_gettime(CLOCK_MONOTONIC, &start3);
+//  omp_start = omp_get_wtime();
+  int n;
+  #pragma omp parallel for private(n) num_threads(4) reduction(+:countOMP)
+  for ( n=0 ; n < size ; n++) {
+    if ( array[n] == 99 ) {
+      countOMP += 1;
+    }
+  }
+//  omp_end = omp_get_wtime();
+  clock_gettime(CLOCK_MONOTONIC, &finish3);
+  elapsed3 = (finish3.tv_sec - start3.tv_sec);
+  elapsed3 += (finish3.tv_nsec - start3.tv_nsec) / 1000000000.0 ;
+  
+
   /* Now Perform data parallelism. */
   /* Each thread chews through a piece of the arrray. */ 
  
   /* Figure out if a thread needs to handle left-overs */ 
-  unsigned long long int remainder;
+  unsigned int remainder;
   remainder = size % NUM_THREADS;
 
-  unsigned long long int dividend;
+  unsigned int dividend;
   dividend = size / NUM_THREADS;
 
   /* Declare the threads */
@@ -156,12 +175,13 @@ int main(int argc, char *argv[]) {
 
   /* Gotta wait for the threads to finish */
   for ( i=0 ; i < NUM_THREADS ; i++) {
-    int ret;
-    void* result;
-    ret = pthread_join(threads[i],&result);
-    if(ret) {
-      printf("MAIN: ERROR: pthread_join() returned %d\n",ret);
-    }
+    //int ret;
+    //void* result;
+    //ret = pthread_join(threads[i],&result);
+    pthread_join(threads[i],NULL);
+    //if(ret) {
+    //  printf("MAIN: ERROR: pthread_join() returned %d\n",ret);
+    //}
   }
 //  testEnd = clock();
 //  testTime = ((double)(testEnd-testStart))/ CLOCKS_PER_SEC;
@@ -186,11 +206,16 @@ int main(int argc, char *argv[]) {
   /* End with the count */
   printf("Found %d 99s concurrently.\n", count);
   printf("Found %d 99s serially.\n", countSerial);
+  printf("Found %d 99s with OMP.\n", countOMP);
 
   printf("Took %f time concurrently.\n", concurrentTime);
 //  printf("Took %f time serially.\n", serialTime);
   printf("Took %f time serially.\n", elapsed);
 //  printf("Took %f time test.\n", testTime);
   printf("Took %f time test.\n", elapsed2);
+  printf("Speedup is %f.\n" , (double)(elapsed/elapsed2));
+
+  printf("OMP time is %f.\n", elapsed3);
+  printf("OMP speedup is %f.\n", (double)(elapsed/elapsed3));
 
 }
