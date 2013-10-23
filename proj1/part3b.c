@@ -11,10 +11,12 @@ static int numberOfZeros;
 struct thread_args {
   int thread_id;
   pthread_mutex_t* locker;
-  int* counter;
+//  int* counter;
+  int counter;
   int* array;
-  int start;
-  int finish;
+  unsigned long long int start;
+  unsigned long long int finish;
+  double time_spent;
 };
 
 /* Threaded Code */
@@ -23,7 +25,7 @@ void *findThe99s(void* threadArgs) {
   struct thread_args *local;
   local = (struct thread_args *) threadArgs;
 
-  int start,finish;
+  unsigned long long int start,finish;
   start = local->start;
   finish = local->finish;
 
@@ -34,15 +36,20 @@ void *findThe99s(void* threadArgs) {
   locker = local->locker;
 
   printf("THREAD: In thread %d.\n",local->thread_id);
-  printf("Checking from %d to %d.\n",start,finish);
+  printf("Checking from %llu to %llu.\n",start,finish);
 
+  clock_t begin,end;
+  begin = clock();
   for( start ; start < finish ; start++ ) {
     if (local->array[start] == 99) {
-      pthread_mutex_lock(locker);
-      *globalCount = *globalCount + 1;
-      pthread_mutex_unlock(locker);
+//      pthread_mutex_lock(locker);
+//      *globalCount = *globalCount + 1;
+//      pthread_mutex_unlock(locker);
+        local->counter = local->counter + 1;
     } 
   }
+  end = clock();
+  local->time_spent = ((double)(end-begin))/CLOCKS_PER_SEC;
 
 }
 
@@ -52,12 +59,14 @@ int main(int argc, char *argv[]) {
   /* But let's play it safe */
   numberOfZeros = 0;
 
-  int count, i;
+  int count;
   count = 0;
-  int const size = 100000; /* 100K */
-  int array[size];
+  unsigned long long int const size = 100000000; /* 100K */
+  int *array = malloc(sizeof(unsigned long long int)*size);
 
+  unsigned long long int i;
   /* Fill the array with random values */
+  srand((unsigned)time(NULL));
   for ( i = 0 ; i < size ; i++) {
     array[i] = rand() % 100;
   }
@@ -66,20 +75,28 @@ int main(int argc, char *argv[]) {
   int countSerial;
   countSerial = 0;
 
+  clock_t serialStart;
+  clock_t serialEnd;
+  double serialTime;
+
+  serialStart = clock(); 
   for( i = 0; i < size ; i++) {
     if( array[i] == 99 ) {
       countSerial++;
     }
   }
+  serialEnd = clock();
+
+  serialTime = ((double)(serialEnd - serialStart)) / CLOCKS_PER_SEC;
 
   /* Now Perform data parallelism. */
   /* Each thread chews through a piece of the arrray. */ 
  
   /* Figure out if a thread needs to handle left-overs */ 
-  int remainder;
+  unsigned long long int remainder;
   remainder = size % NUM_THREADS;
 
-  int dividend;
+  unsigned long long int dividend;
   dividend = size / NUM_THREADS;
 
   /* Declare the threads */
@@ -97,14 +114,16 @@ int main(int argc, char *argv[]) {
   for ( i = 0 ; i < NUM_THREADS ; i++) {
 
     /* We want each thread to have the address of the shared counter */
-    /* And the same mutex */
+    /* and the address of the (single) mutex to protect access to counter. */
     threadArgs[i].thread_id = i;
     threadArgs[i].locker = &locker;
-    threadArgs[i].counter = &count;
+//    threadArgs[i].counter = &count;
+    threadArgs[i].counter = 0;
     threadArgs[i].array = array;
     threadArgs[i].start = i*dividend;
     threadArgs[i].finish = (i+1)*dividend;
-    if (remainder) {
+    threadArgs[i].time_spent = 0;
+    if (i == NUM_THREADS -1 && remainder) {
       threadArgs[i].finish += remainder;
       remainder = 0;
     }
@@ -128,8 +147,24 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  /* Crunch total time with threads */
+  double concurrentTime;
+  concurrentTime = 0;
+  for ( i = 0 ; i < NUM_THREADS ; i++) {
+    concurrentTime += threadArgs[i].time_spent;
+  }
+
+  count = 0;
+  /* Crunch total occurences from threads */
+  for ( i = 0 ; i < NUM_THREADS ; i++) {
+    count += threadArgs[i].counter;
+  }
+
   /* End with the count */
   printf("Found %d 99s concurrently.\n", count);
   printf("Found %d 99s serially.\n", countSerial);
+
+  printf("Took %f time concurrently.\n", concurrentTime);
+  printf("Took %f time serially.\n", serialTime);
 
 }
