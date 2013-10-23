@@ -38,6 +38,8 @@ void *matrixCruncher(void* threadArgs) {
     C[row][column] += A[row][i] + B[i][column];
   }
 
+  printf("Exiting thread %d\n",local->thread_id);
+
 }
 
 int main(int argc, char *argv[]) {
@@ -46,7 +48,13 @@ int main(int argc, char *argv[]) {
   struct thread_args init[M*N];
 
   /* Create an array of thread-types */
-  pthread_t threads[M*N];
+//  pthread_t threads[M*N];
+  pthread_t *threads = malloc(sizeof(pthread_t)*(M*N));
+
+  /* Give all threads same attributes. Namely, joinable */
+//  pthread_attr_t attr;
+//  pthread_attr_init(&attr);
+//  pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
 
   int count,retval;
   count = 0;
@@ -65,6 +73,7 @@ int main(int argc, char *argv[]) {
         (void *) &init[count]);
       if (retval) {
         printf("ERROR: pthread_create() returned %d\n",retval);
+        exit(-1);
       }
 
       count++;
@@ -73,10 +82,21 @@ int main(int argc, char *argv[]) {
 
   }
 
+  printf("Waiting for threads to finish.\n");
+
   /* Wait for the threads to finish */
-  for ( i=0 ; i < M*N ; i++) {
-    pthread_join(threads[i],NULL);
+    for ( i=0 ; i < M*N ; i++) {
+    printf("Beginning cleanup of thread %d.\n",i);
+    int ret;
+    void* result;
+    ret = pthread_join(threads[i],&result);
+    if(ret) {
+      printf("ERROR: pthread_join() returned %d on thread_id %d\n",ret,i);
+    }
+    printf("Finished waiting on %d\n",i);
   }
+
+  printf("Finished waiting on threads.\n");
 
   /* Output the final matrix */
   for ( i=0 ; i < M ; i++ ) {
