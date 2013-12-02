@@ -125,18 +125,6 @@ void *remove_item(void* thread_args) {
 
 }
 
-/* This thread does the sleep timing. This isn't perfect, but it 
- * should be close enough.
- */
-void *timerThread(void* time_to_sleep) {
-
-  int timer = (int) time_to_sleep;
-  sleep(timer);
-  quitting_time = 1;
-  pthread_exit(NULL);
-
-}
-
 /*********************/
 /*                   */
 /* LOL MAIN FUNCTION */
@@ -148,7 +136,7 @@ int main(int argc, char *argv[]) {
   /* Seed the PRNG */
   srand(time(NULL));
 
-  /* Command line parameters (time to sleep is global) */
+  /* Command line parameters */
   int time_to_sleep;
   int num_producers;
   int num_consumers;
@@ -162,6 +150,12 @@ int main(int argc, char *argv[]) {
     time_to_sleep = atoi(argv[1]);
     num_producers = atoi(argv[2]);
     num_consumers = atoi(argv[3]);
+
+    printf("Time to sleep: %d\n", time_to_sleep);
+    printf("Number of producers: %d\n", num_producers);
+    printf("Number of consumers: %d\n", num_consumers);
+    printf("\n\n PREPARE YOUR SCREEN BUFFER \n\n");
+    sleep(3);
   }
 
   /* Set up the three semaphores: empty, full, and mutex.
@@ -212,12 +206,19 @@ int main(int argc, char *argv[]) {
 
   }
 
-  /* Create the timer */
-  int ret;
-  pthread_t timer;
-  ret = pthread_create(&timer, NULL, timerThread, (void *) &time_to_sleep);
+  /* The threads are running. Sleep for user-specified time */
+  sleep(time_to_sleep);
 
-  /* Wait for producers and consumers to finish */
+  /* Update the global var so that the threads stop. This is
+   * technically a shared variable so we need to make sure we 
+   * don't add race conditions by changing it while a thread 
+   * is checking against it. 
+   */
+  pthread_mutex_lock(&mutex);
+  quitting_time = 1;
+  pthread_mutex_unlock(&mutex);
+
+  /* Wait for producers and consumers to finish if they haven't ended yet. */
   for (i=0 ; i < total_threads ; i++) {
 
     int ret;
@@ -232,13 +233,12 @@ int main(int argc, char *argv[]) {
 
   }
 
-  /* Sleep for N seconds */
-//  sleep(time_to_sleep);
-  
-  /* Set global flag quitting_time to 1. Threads should exit. */
-//  quitting_time = 1;
-
   printf("Done.\n");
   return 0;
+
+  /* Note: This code does not cleanly shut down. The threads are 
+   * simply told to quit and the buffer is not free()'d. But, since 
+   * the assignment didn't require cleanup, it isn't here.
+   */
 
 }
