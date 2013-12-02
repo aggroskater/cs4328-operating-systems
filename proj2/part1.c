@@ -60,7 +60,7 @@ void *insert_item(void* thread_args) {
     /* Acquire empty */
     sem_wait(&empty);
 
-    /* Aquire mutex */
+    /* Acquire mutex */
     pthread_mutex_lock(&mutex);
 
     /* Critical Section. Add to buffer.
