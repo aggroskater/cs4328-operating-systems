@@ -159,9 +159,9 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
   else {
-    time_to_sleep = atoi(argv[2]);
-    num_producers = atoi(argv[3]);
-    num_consumers = atoi(argv[4]);
+    time_to_sleep = atoi(argv[1]);
+    num_producers = atoi(argv[2]);
+    num_consumers = atoi(argv[3]);
   }
 
   /* Set up the three semaphores: empty, full, and mutex.
