@@ -33,8 +33,8 @@ struct thread_args {
 };
 
 int buffer[BUFFER_SIZE] = {-1};
-int produced = 0;
-int consumed = 0;
+unsigned int produced = 0;
+unsigned int consumed = 0;
 int time_to_quit = 0;
 
 pthread_mutex_t mutex;
@@ -53,14 +53,36 @@ void *insert_item(void* thread_args) {
   struct thread_args *local;
   local = (struct thread_args *) thread_args;
 
-  /* Acquire mutex */
+  do {
+    /* Get a random number */
+    
 
-  /* Aquire empty */
+    /* Acquire empty */
+    sem_wait(&empty);
 
-  /* Release empty */
+    /* Aquire mutex */
+    pthread_mutex_lock(&mutex);
 
-  /* Release mutex */
-  printf("Producing %d", local.rand);
+    /* Critical Section. Add to buffer.
+     * (This modulo BUFFER_SIZE trick won't work forever. 
+     * Eventually, produced and consumed would overflow.
+     * Let's just pretend that can't happen.)
+     * (Wait. I'm a moron. Nevermind that last comment.)
+     */
+    buffer[produced] = local.rand;
+    printf("Producing buffer[%d] = %d\n", produced, local.rand);
+    produced = (produced + 1) % BUFFER_SIZE;
+
+    /* Release mutex */
+    pthread_mutex_unlock(&mutex);
+
+    /* Update full */
+    sem_post(&full); 
+ 
+  } while(!time_to_quit);
+
+  /* time_to_quit has been set by main. End the thread */
+  pthread_exit(NULL);
 
 }
 
