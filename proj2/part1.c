@@ -35,7 +35,6 @@ struct thread_args {
 int buffer[BUFFER_SIZE] = {-1};
 unsigned int produced = 0;
 unsigned int consumed = 0;
-int quitting_time = 0;
 
 pthread_mutex_t mutex;
 sem_t full;
@@ -52,6 +51,9 @@ void *insert_item(void* thread_args) {
 
   struct thread_args *local;
   local = (struct thread_args *) thread_args;
+
+  /* Gonna try doing this to fix race condition */
+  pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS,NULL);
 
   do {
     /* Get a random number */
@@ -79,10 +81,7 @@ void *insert_item(void* thread_args) {
     /* Update full */
     sem_post(&full); 
  
-  } while(!quitting_time);
-
-  /* quitting_time has been set by main. End the thread */
-  pthread_exit(NULL);
+  } while(1);
 
 }
 
@@ -91,6 +90,8 @@ void *remove_item(void* thread_args) {
 
   struct thread_args *local;
   local = (struct thread_args *) thread_args;
+
+  pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS,NULL);
 
   do {
     /* Get a random number */
@@ -118,10 +119,7 @@ void *remove_item(void* thread_args) {
     /* Update empty */
     sem_post(&empty); 
  
-  } while(!quitting_time);
-
-  /* quitting_time has been set by main. End the thread */
-  pthread_exit(NULL);
+  } while(1);
 
 }
 
@@ -209,27 +207,19 @@ int main(int argc, char *argv[]) {
   /* The threads are running. Sleep for user-specified time */
   sleep(time_to_sleep);
 
-  /* Update the global var so that the threads stop. This is
-   * technically a shared variable so we need to make sure we 
-   * don't add race conditions by changing it while a thread 
-   * is checking against it. 
+  /* Since our threads are set to cancel asyncrhonously, we can 
+   * simply do a pthread_cancel(). This is cheap and bad practice, 
+   * since there is no cleanup. But the project description doesn't 
+   * require cleanup :D And it's two in the morning. And I'm tired.
    */
-  pthread_mutex_lock(&mutex);
-  quitting_time = 1;
-  pthread_mutex_unlock(&mutex);
-
-  /* Wait for producers and consumers to finish if they haven't ended yet. */
   for (i=0 ; i < total_threads ; i++) {
 
     int ret;
-    void* result;
-    ret = pthread_join(threads[i], &result);
+    ret = pthread_cancel(threads[i]);
 
     if(ret) {
-      printf("Error: pthread_join() returned %d\n", ret);
+      printf("Error: pthread_cancel() returned %d\n", ret);
     }
-
-    pthread_join(threads[i],NULL);
 
   }
 
