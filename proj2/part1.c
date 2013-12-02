@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <semaphores.h>
+#include <semaphore.h>
 
 /*
  *
@@ -35,7 +35,7 @@ struct thread_args {
 int buffer[BUFFER_SIZE] = {-1};
 unsigned int produced = 0;
 unsigned int consumed = 0;
-int time_to_quit = 0;
+int quitting_time = 0;
 
 pthread_mutex_t mutex;
 sem_t full;
@@ -55,7 +55,7 @@ void *insert_item(void* thread_args) {
 
   do {
     /* Get a random number */
-    
+    local->rand = rand() % 1000;    
 
     /* Acquire empty */
     sem_wait(&empty);
@@ -69,8 +69,8 @@ void *insert_item(void* thread_args) {
      * Let's just pretend that can't happen.)
      * (Wait. I'm a moron. Nevermind that last comment.)
      */
-    buffer[produced] = local.rand;
-    printf("Producing buffer[%d] = %d\n", produced, local.rand);
+    buffer[produced] = local->rand;
+    printf("Producing buffer[%d] = %d\n", produced, buffer[produced]);
     produced = (produced + 1) % BUFFER_SIZE;
 
     /* Release mutex */
@@ -79,9 +79,9 @@ void *insert_item(void* thread_args) {
     /* Update full */
     sem_post(&full); 
  
-  } while(!time_to_quit);
+  } while(!quitting_time);
 
-  /* time_to_quit has been set by main. End the thread */
+  /* quitting_time has been set by main. End the thread */
   pthread_exit(NULL);
 
 }
@@ -92,7 +92,48 @@ void *remove_item(void* thread_args) {
   struct thread_args *local;
   local = (struct thread_args *) thread_args;
 
-  printf("Consuming %d", local.rand);
+  do {
+    /* Get a random number */
+    local->rand = rand() % 1000;    
+
+    /* Acquire full */
+    sem_wait(&full);
+
+    /* Acquire mutex */
+    pthread_mutex_lock(&mutex);
+
+    /* Critical Section. Add to buffer.
+     * (This modulo BUFFER_SIZE trick won't work forever. 
+     * Eventually, produced and consumed would overflow.
+     * Let's just pretend that can't happen.)
+     * (Wait. I'm a moron. Nevermind that last comment.)
+     */
+    buffer[consumed] = local->rand;
+    printf(">>>>>Consuming buffer[%d] = %d<<<<<\n", consumed, buffer[consumed]);
+    consumed = (consumed + 1) % BUFFER_SIZE;
+
+    /* Release mutex */
+    pthread_mutex_unlock(&mutex);
+
+    /* Update empty */
+    sem_post(&empty); 
+ 
+  } while(!quitting_time);
+
+  /* quitting_time has been set by main. End the thread */
+  pthread_exit(NULL);
+
+}
+
+/* This thread does the sleep timing. This isn't perfect, but it 
+ * should be close enough.
+ */
+void *timerThread(void* time_to_sleep) {
+
+  int timer = (int) time_to_sleep;
+  sleep(timer);
+  quitting_time = 1;
+  pthread_exit(NULL);
 
 }
 
@@ -103,6 +144,9 @@ void *remove_item(void* thread_args) {
 /*********************/
 
 int main(int argc, char *argv[]) {
+
+  /* Seed the PRNG */
+  srand(time(NULL));
 
   /* Command line parameters (time to sleep is global) */
   int time_to_sleep;
@@ -143,7 +187,7 @@ int main(int argc, char *argv[]) {
 
   /* Create the producers */
   int i;
-  for (i=0 ; i < producers ; i++) {
+  for (i=0 ; i < num_producers ; i++) {
 
     int ret;
     ret = pthread_create(&threads[i], NULL, insert_item, 
@@ -156,7 +200,7 @@ int main(int argc, char *argv[]) {
   }
 
   /* Create the consumers */
-  for (i=producers ; i < total_threads ; i++) {
+  for (i=num_producers ; i < total_threads ; i++) {
 
     int ret;
     ret = pthread_create(&threads[i], NULL, remove_item, 
@@ -168,7 +212,12 @@ int main(int argc, char *argv[]) {
 
   }
 
-  /* Wait for them to finish */
+  /* Create the timer */
+  int ret;
+  pthread_t timer;
+  ret = pthread_create(&timer, NULL, timerThread, (void *) &time_to_sleep);
+
+  /* Wait for producers and consumers to finish */
   for (i=0 ; i < total_threads ; i++) {
 
     int ret;
@@ -184,10 +233,10 @@ int main(int argc, char *argv[]) {
   }
 
   /* Sleep for N seconds */
-
+//  sleep(time_to_sleep);
   
-  /* Set global flag time_to_quit to 1. Threads should exit. */
-  time_to_quit = 1;
+  /* Set global flag quitting_time to 1. Threads should exit. */
+//  quitting_time = 1;
 
   printf("Done.\n");
   return 0;
