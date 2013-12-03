@@ -44,3 +44,58 @@ int available_ta;
 int available_seat;
 
 /* Gonna start thinking through the student threads' logic now... */
+void *student(void* thread_args) {
+
+  lock(mutex);
+
+  /* No available seats. Come back later. */
+  while ( wait_count == 3 ) {
+
+    printf("Student %d goes back to program.\n", local->id);
+    wait(available_seat,mutex);
+
+  }
+
+  /* Ok, at least one seat is available. */
+  while ( wait_count >= 0 && wait_count <= 2 ) {
+
+    /* Is anyone waiting ? */
+    while ( wait_count == 0 ) {
+      wait_count++;
+      signal(student_waiting,mutex);
+      wait(available_ta,mutex);  
+    }
+    printf("Student %d waits for help in a chair.\n", local->id);
+    wait_count++;
+    signal(available_seat,mutex);
+    wait(available_ta,mutex);
+
+  }
+  while ( wait_count == 0 ) {
+
+    signal(available_seat,mutex);
+
+  }
+
+  unlock(mutex);
+
+}
+
+/* And the teacher logic... */
+void *teacher(void* thread_args) {
+
+  lock(mutex);
+
+  while ( wait_count == 0 ) {
+
+    printf("The TA is sleeping.\n");
+    signal(available_ta,mutex);
+    wait(student_waiting,mutex);
+
+  }
+
+  printf("The TA is woken up.\n"); 
+
+  unlock(mutex);
+
+}
