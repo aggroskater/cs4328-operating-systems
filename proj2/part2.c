@@ -12,6 +12,8 @@
  *
  */
 
+#define SEATS 3
+
 /************************/
 /*                      */
 /* LOL GLOBAL VARIABLES */
@@ -24,17 +26,7 @@ struct thread_args {
 
 };
 
-/* hallway_full is initialized to zero. */
-sem_t hallway_full
-
-/* hallway_empty is initialized to three, the number of seats in the hall.
- * Student threads will first check to see if the TA is busy or not. If s/he
- * is, then they will wait on this semaphore for an available slot.
- */
-sem_t hallway_empty;
-
-
-/* wait_count holds number of students currently waiting. */
+int seats[SEATS+1] = {-1};
 unsigned int wait_count;
 
 /* available_ta is a CV that says whether TA is available. */
@@ -43,41 +35,39 @@ int available_ta;
 /* available_seat is a CV */
 int available_seat;
 
+
+
+
 /* Gonna start thinking through the student threads' logic now... */
 void *student(void* thread_args) {
 
   lock(mutex);
 
   /* No available seats. Come back later. */
-  while ( wait_count == 3 ) {
+  while ( wait_count == SEATS ) {
 
     printf("Student %d goes back to program.\n", local->id);
-    wait(available_seat,mutex);
+    sleep(1);
 
   }
 
-  /* Ok, at least one seat is available. */
-  while ( wait_count >= 0 && wait_count <= 2 ) {
+//  lock(mutex);
 
-    /* Is anyone waiting ? */
-    while ( wait_count == 0 ) {
-      wait_count++;
-      signal(student_waiting,mutex);
-      wait(available_ta,mutex);  
-    }
-    printf("Student %d waits for help in a chair.\n", local->id);
-    wait_count++;
-    signal(available_seat,mutex);
-    wait(available_ta,mutex);
-
-  }
-  while ( wait_count == 0 ) {
-
-    signal(available_seat,mutex);
-
-  }
+  /* Seat available. See if TA is busy. The TA will be busy if he is 
+   * helping someone. 
+   */
+  seats[wait_count] = local->id;  
+  wait_count++;
+  signal(student_waiting,mutex);
 
   unlock(mutex);
+
+  wait(available_ta,mutex2);
+
+//  wait(available_ta,mutex);
+
+//  printf("The TA is helping student %d.\n", local->id);
+  
 
 }
 
@@ -89,12 +79,20 @@ void *teacher(void* thread_args) {
   while ( wait_count == 0 ) {
 
     printf("The TA is sleeping.\n");
-    signal(available_ta,mutex);
+//    signal(available_ta,mutex);
     wait(student_waiting,mutex);
 
   }
 
-  printf("The TA is woken up.\n"); 
+//  lock(mutex);
+
+  printf("The TA is woken up.\n");
+
+  while ( wait_count != 0 ) {
+
+    printf("The TA is helping student %d.\n", seats[--wait_count]);
+
+  }
 
   unlock(mutex);
 
