@@ -1,0 +1,11 @@
+Part 1 is working as expected.
+
+I was unable to get part 2 working according to specs, even with an 
+additional day's coding past the deadline. I am disappointed, but I 
+suspect I'm either missing something fundamental or misunderstanding the 
+spec somehow. I've included my work for part2, but be advised that it does 
+not compile. You may view my wrangling's with it in the git repository at 
+
+http://github.com/aggroskater/cs4328-operating-systems/
+
+Do with it what you will.
