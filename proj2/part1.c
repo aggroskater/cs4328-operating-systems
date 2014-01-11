@@ -95,7 +95,8 @@ void *remove_item(void* thread_args) {
 
   do {
     /* Get a random number */
-    local->rand = rand() % 1000;    
+    //local->rand = rand() % 1000;    
+    //Not sure why i thought this was right. Probably copy-paste mistake.
 
     /* Acquire full */
     sem_wait(&full);
@@ -109,8 +110,10 @@ void *remove_item(void* thread_args) {
      * Let's just pretend that can't happen.)
      * (Wait. I'm a moron. Nevermind that last comment.)
      */
-    buffer[consumed] = local->rand;
+    //buffer[consumed] = local->rand;
     printf(">>>>>Consuming buffer[%d] = %d<<<<<\n", consumed, buffer[consumed]);
+    buffer[consumed] = -1;
+    printf(">>>>>buffer[%d] is now %d<<<<<\n", consumed, buffer[consumed]);
     consumed = (consumed + 1) % BUFFER_SIZE;
 
     /* Release mutex */
